@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 mod tests;
 
 #[derive(Debug, Default, Clone)]
-pub struct ErgoMap<T, S> {
+pub struct ErgoMap<T, S = RandomState> {
     map: HashMap<Id<T>, T, S>,
     inc: usize
 }
