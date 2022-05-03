@@ -101,17 +101,17 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     }
 
     /// Calls the given function on every id-value pair in the map.
-    pub fn for_all<F: Fn(&Id<T>, &T)>(&self, f: F) {
+    pub fn for_all<F: FnMut(&Id<T>, &T)>(&self, mut f: F) {
         for args in self.map.iter() {
-            f.call(args)
+            f.call_mut(args)
         }
     }
 
     /// Calls the given function on every id-value pair in the map. Provides a mutable reference to
     /// values.
-    pub fn for_all_mut<F: Fn(&Id<T>, &mut T)>(&mut self, f: F) {
+    pub fn for_all_mut<F: FnMut(&Id<T>, &mut T)>(&mut self, mut f: F) {
         for args in self.map.iter_mut() {
-            f.call(args)
+            f.call_mut(args)
         }
     }
 
