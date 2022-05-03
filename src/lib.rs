@@ -81,7 +81,7 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     pub fn insert(&mut self, value: T) -> Id<T> {
         let id = Id::new_for(self);
 
-        self.map.insert(id, value);
+        self.map.insert(id.clone(), value);
         id
     }
 
@@ -152,7 +152,7 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
 
 #[derive(Debug)]
 pub struct Id<T> {
-    value: usize,
+    key: Vec<u8>,
     phantom: PhantomData<T>,
 }
 
@@ -160,7 +160,7 @@ pub struct Id<T> {
 // Seems to be a known issue. See https://github.com/rust-lang/rust/issues/26925.
 impl<T> PartialEq for Id<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.value.eq(&other.value)
+        self.key.eq(&other.key)
     }
 }
 
@@ -168,22 +168,20 @@ impl<T> Eq for Id<T> {}
 
 impl<T> Hash for Id<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state)
+        self.key.hash(state)
     }
 }
 
 impl<T> Clone for Id<T> {
     fn clone(&self) -> Self {
-        Id::new(self.value)
+        Id::new(self.key.clone())
     }
 }
 
-impl<T> Copy for Id<T> {}
-
 impl<T> Id<T> {
-    fn new(value: usize) -> Self {
+    fn new(value: Vec<u8>) -> Self {
         Id {
-            value,
+            key: value,
             phantom: Default::default(),
         }
     }
@@ -191,7 +189,7 @@ impl<T> Id<T> {
     fn new_for<S>(map: &mut ErgoMap<T, S>) -> Self {
         map.inc += 1;
         Id {
-            value: map.inc,
+            key: map.inc.to_be_bytes().to_vec(),
             phantom: Default::default(),
         }
     }
