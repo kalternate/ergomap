@@ -100,7 +100,18 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
         self.map.get(id)
     }
 
-    /// Calls the given function on every id-value pair in the map.
+    /// Calls the given function on the corresponding value to the specified [`Id`].
+    pub fn for_one<R, F: FnOnce(&T) -> R>(&self, id: &Id<T>, f: F) -> Option<R> {
+        self.map.get(id).map(f)
+    }
+
+    /// Calls the given function on the corresponding value to the specified [`Id`]. Provides a
+    /// mutable reference to the value.
+    pub fn for_one_mut<R, F: FnOnce(&mut T) -> R>(&mut self, id: &Id<T>, f: F) -> Option<R> {
+        self.map.get_mut(id).map(f)
+    }
+
+    /// Calls the given function on every Id-value pair in the map.
     pub fn for_all<F: FnMut(&Id<T>, &T)>(&self, mut f: F) {
         for args in self.map.iter() {
             f.call_mut(args)
