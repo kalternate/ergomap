@@ -1,3 +1,5 @@
+#![feature(fn_traits)]
+
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -8,42 +10,37 @@ mod tests;
 #[derive(Debug, Default, Clone)]
 pub struct ErgoMap<T, S = RandomState> {
     map: HashMap<Id<T>, T, S>,
-    inc: usize
+    inc: usize,
 }
 
 impl<T> ErgoMap<T, RandomState> {
-
     /// Creates an empty `ErgoMap`.
     pub fn new() -> Self {
-        ErgoMap{
+        ErgoMap {
             map: HashMap::new(),
-            inc: 0
+            inc: 0,
         }
     }
 
     /// Creates an empty `ErgoMap` with the specified capacity.
-    pub fn with_capacity(capacity: usize) -> Self{
-        ErgoMap{
+    pub fn with_capacity(capacity: usize) -> Self {
+        ErgoMap {
             map: HashMap::with_capacity(capacity),
-            inc: 0
+            inc: 0,
         }
     }
-
-
-
 }
 
 impl<T, S: BuildHasher> ErgoMap<T, S> {
-
     /// Creates an empty `ErgoMap` which will use the given hash builder to hash keys.
     ///
     /// Warning: `hash_builder` is normally randomly generated, and is designed to allow
     /// [`HashMap`]s to be resistant to attacks that cause many collisions and very poor
     /// performance. Setting it manually using this function can expose a DoS attack vector.
     pub fn with_hasher(hash_builder: S) -> Self {
-        ErgoMap{
+        ErgoMap {
             map: HashMap::with_hasher(hash_builder),
-            inc: 0
+            inc: 0,
         }
     }
 
@@ -54,9 +51,9 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     /// [`HashMap`]s to be resistant to attacks that cause many collisions and very poor
     /// performance. Setting it manually using this function can expose a DoS attack vector.
     pub fn with_capacity_and_hasher(capacity: usize, hash_builder: S) -> Self {
-        ErgoMap{
+        ErgoMap {
             map: HashMap::with_capacity_and_hasher(capacity, hash_builder),
-            inc: 0
+            inc: 0,
         }
     }
 
@@ -88,7 +85,7 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
         id
     }
 
-    /// Removes a value from the map by corresponding ['Id'], returning it if was found in the map.
+    /// Removes a value from the map by corresponding [`Id`], returning it if was found in the map.
     pub fn remove(&mut self, id: &Id<T>) -> Option<T> {
         self.map.remove(id)
     }
@@ -96,6 +93,26 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     /// Returns `true` if the map contains a value with the specified [`Id`].
     pub fn contains_id(&self, id: &Id<T>) -> bool {
         self.map.contains_key(id)
+    }
+
+    /// Returns a reference to the value corresponding to the [`Id`].
+    pub fn get(&self, id: &Id<T>) -> Option<&T> {
+        self.map.get(id)
+    }
+
+    /// Calls the given function on every id-value pair in the map.
+    pub fn for_all<F: Fn(&Id<T>, &T)>(&self, f: F) {
+        for args in self.map.iter() {
+            f.call(args)
+        }
+    }
+
+    /// Calls the given function on every id-value pair in the map. Provides a mutable reference to
+    /// values.
+    pub fn for_all_mut<F: Fn(&Id<T>, &mut T)>(&mut self, f: F) {
+        for args in self.map.iter_mut() {
+            f.call(args)
+        }
     }
 
     /// Chainable variant of `insert`.
@@ -125,9 +142,8 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
 #[derive(Debug)]
 pub struct Id<T> {
     value: usize,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
-
 
 // Not sure why these can't be derived but it won't compile unless I manually implement them.
 // Seems to be a known issue. See https://github.com/rust-lang/rust/issues/26925.
@@ -155,17 +171,17 @@ impl<T> Copy for Id<T> {}
 
 impl<T> Id<T> {
     fn new(value: usize) -> Self {
-        Id{
+        Id {
             value,
-            phantom: Default::default()
+            phantom: Default::default(),
         }
     }
 
     fn new_for<S>(map: &mut ErgoMap<T, S>) -> Self {
         map.inc += 1;
-        Id{
+        Id {
             value: map.inc,
-            phantom: Default::default()
+            phantom: Default::default(),
         }
     }
 }
