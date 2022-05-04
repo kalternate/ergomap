@@ -1,17 +1,17 @@
 #![cfg(test)]
 
-use crate::{ErgoMap, Id};
+use crate::{BuildId, ErgoMap, Id};
 use std::any::{Any, TypeId};
 
 #[test]
-fn test_ergomap_contains_id() {
+fn ergomap_contains_id() {
     let mut map = ErgoMap::new();
     let id = map.insert(1);
     assert!(map.contains_id(&id))
 }
 
 #[test]
-fn test_ergomap_remove() {
+fn ergomap_remove() {
     let mut map = ErgoMap::new();
     let id = map.insert(1);
     map.remove(&id);
@@ -19,14 +19,14 @@ fn test_ergomap_remove() {
 }
 
 #[test]
-fn test_ergomap_capacity() {
+fn ergomap_capacity() {
     let mut map = ErgoMap::with_capacity(64);
     map.insert(1);
     assert!(map.capacity() >= 64)
 }
 
 #[test]
-fn test_ergomap_len() {
+fn ergomap_len() {
     let mut map = ErgoMap::new();
     map.insert(1);
     map.insert(1);
@@ -36,7 +36,7 @@ fn test_ergomap_len() {
 }
 
 #[test]
-fn test_ergomap_clear() {
+fn ergomap_clear() {
     let mut map = ErgoMap::new();
     map.insert(1);
     map.insert(1);
@@ -48,7 +48,7 @@ fn test_ergomap_clear() {
 }
 
 #[test]
-fn test_ergomap_is_empty() {
+fn ergomap_is_empty() {
     let mut map = ErgoMap::new();
     assert!(map.is_empty());
     map.insert(1);
@@ -56,7 +56,7 @@ fn test_ergomap_is_empty() {
 }
 
 #[test]
-fn test_ergomap_get() {
+fn ergomap_get() {
     let mut map = ErgoMap::new();
     let id1 = map.insert(1);
     let id2 = map.insert(2);
@@ -67,7 +67,7 @@ fn test_ergomap_get() {
 }
 
 #[test]
-fn test_ergomap_for_one() {
+fn ergomap_for_one() {
     let mut map: ErgoMap<i32> = ErgoMap::new();
     let id1 = map.insert(1);
     let id2 = map.insert(2);
@@ -79,7 +79,7 @@ fn test_ergomap_for_one() {
 }
 
 #[test]
-fn test_ergomap_for_one_mut() {
+fn ergomap_for_one_mut() {
     struct IWrapper(i32);
 
     let mut map = ErgoMap::new();
@@ -97,7 +97,7 @@ fn test_ergomap_for_one_mut() {
 }
 
 #[test]
-fn test_ergomap_for_all() {
+fn ergomap_for_all() {
     let mut map = ErgoMap::new();
     map.insert(1);
     map.insert(1);
@@ -110,7 +110,7 @@ fn test_ergomap_for_all() {
 }
 
 #[test]
-fn test_ergomap_for_all_mut() {
+fn ergomap_for_all_mut() {
     struct IWrapper(i32);
 
     let mut map = ErgoMap::new();
@@ -125,4 +125,35 @@ fn test_ergomap_for_all_mut() {
     assert_eq!(map.get(&id1).unwrap().0, 1);
     assert_eq!(map.get(&id2).unwrap().0, 4);
     assert_eq!(map.get(&id3).unwrap().0, 9);
+}
+
+#[test]
+fn ergomap_insert_as() {
+    let mut map = ErgoMap::new();
+
+    let id = map.insert_as(vec![0xBE, 0xEF], true).unwrap();
+    assert!(map.insert_as(vec![0xBE, 0xEF], false).is_none());
+    assert!(*map.get(&id).unwrap());
+}
+
+#[test]
+fn ergomap_force_insert_as() {
+    let mut map = ErgoMap::new();
+    let id = map.force_insert_as(vec![0xBE, 0xEF], false);
+    map.force_insert_as(vec![0xBE, 0xEF], true);
+    assert!(map.get(&id).unwrap());
+}
+
+#[test]
+fn ergomap_build_insert() {
+    impl BuildId for bool {
+        fn get_key(&self) -> Vec<u8> {
+            0xDEADBEEF_u32.to_be_bytes().to_vec()
+        }
+    }
+
+    let mut map = ErgoMap::new();
+    let id = map.build_insert(false).unwrap();
+    map.force_build_insert(true);
+    assert!(map.get(&id).unwrap());
 }

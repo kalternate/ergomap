@@ -1,3 +1,23 @@
+//! # ErgoMap
+//!
+//! **ErgoMap** is simple data structure library for wrapping the std [`HashMap`] in a way that
+//! makes code easier to write and restricts key creation to reduce the amount of invalid `get`
+//! calls. All [`ErgoMap`] objects use the [`Id`] type as a key. [`Id`] contains the correspond
+//! value type as a generic parameter and has no public constructor. THis means that [`Id`] must be
+//! obtained through [`ErgoMap`] method calls like `insert`.
+//!
+//! For more flexibility, values can be inserted into [`ErgoMap`] using a specified [`Vec<u8>`] as a
+//! key. The provided [`Vec`] is converted into and returned as an [`Id`]. User types which
+//! implement the [`BuildId`] trait can instead provided a [`Vec<u8>`] for [`Id`] creation
+//! themselves.
+//!
+//! It also implements some methods not found on the std [`HashMap`] for functional programming
+//! and chaining method calls.
+//!
+//! # License
+//! ErgoMap is licensed under the [MIT license.](https://choosealicense.com/licenses/mit/) You can
+//! access the source repository on [GitHub.](https://github.com/kalternate/ergomap)
+
 #![feature(fn_traits)]
 
 use std::collections::hash_map::RandomState;
@@ -7,6 +27,12 @@ use std::marker::PhantomData;
 
 mod tests;
 
+/// Map that wraps the std [`HashMap`], using [`Id`] as the key.
+///
+/// When a value is inserted into the map, the corresponding [`Id`] is returned, which can be used
+/// to access it latter. Thus, values can be inserted into [`ErgoMap`] without having to specify a
+/// key. This restricts the pool of possible [`Id`]s. Note that invalid [`Id`]s can still exist,
+/// either by removing values from the map or obtaining [`Id`]s from another map.
 #[derive(Debug, Default, Clone)]
 pub struct ErgoMap<T, S = RandomState> {
     map: HashMap<Id<T>, T, S>,
@@ -85,6 +111,29 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
         id
     }
 
+    /// Inserts a value into the map, using the specified key [`Vec`] to make an [`Id`] for it.
+    ///
+    /// Returns [`None`] if that [`Id`] is already in use. Otherwise returns that [`Id`].
+    pub fn insert_as(&mut self, key: Vec<u8>, value: T) -> Option<Id<T>> {
+        let id = Id::new(key);
+
+        if self.contains_id(&id) {
+            return None;
+        }
+
+        self.map.insert(id.clone(), value);
+        Some(id)
+    }
+
+    /// Inserts a value into the map, using the specified key [`Vec`] to make an [`Id`] for it.
+    ///
+    /// If that [`Id`] is already in use, then the previous corresponding value is dropped.
+    pub fn force_insert_as(&mut self, key: Vec<u8>, value: T) -> Id<T> {
+        let id = Id::new(key);
+        self.map.insert(id.clone(), value);
+        id
+    }
+
     /// Removes a value from the map by corresponding [`Id`], returning it if was found in the map.
     pub fn remove(&mut self, id: &Id<T>) -> Option<T> {
         self.map.remove(id)
@@ -150,6 +199,26 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     }
 }
 
+impl<T: BuildId, S: BuildHasher> ErgoMap<T, S> {
+    /// Inserts a value into the map, using it's `get_key` method to build an [`Id`] for it.
+    ///
+    /// Returns [`None`] if that [`Id`] is already in use. Otherwise returns that [`Id`].
+    pub fn build_insert(&mut self, value: T) -> Option<Id<T>> {
+        self.insert_as(value.get_key(), value)
+    }
+
+    /// Inserts a value into the map, using it's `get_key` method to build an [`Id`] for it.
+    ///
+    /// If that [`Id`] is already in use, then the previous corresponding value is dropped.
+    pub fn force_build_insert(&mut self, value: T) -> Id<T> {
+        self.force_insert_as(value.get_key(), value)
+    }
+}
+
+/// Key used to access values in an [`ErgoMap`].
+///
+/// Constructors are made private to reduce the amount of invalid `get` calls. Note that `get` can
+/// still return [`None`] if the value has been removed or the `Id` was made by a different map.
 #[derive(Debug)]
 pub struct Id<T> {
     key: Vec<u8>,
@@ -179,9 +248,9 @@ impl<T> Clone for Id<T> {
 }
 
 impl<T> Id<T> {
-    fn new(value: Vec<u8>) -> Self {
+    fn new(key: Vec<u8>) -> Self {
         Id {
-            key: value,
+            key,
             phantom: Default::default(),
         }
     }
@@ -193,4 +262,14 @@ impl<T> Id<T> {
             phantom: Default::default(),
         }
     }
+}
+
+/// Types that implement this trait can make there own [`Id`] so that it will be constant across
+/// executions and platforms.
+pub trait BuildId {
+    /// Returns a [`Vec`] which will be used to make an [`Id`].
+    ///
+    /// The return value should be unique compared to other values entered into the [`ErgoMap`] but
+    /// should be constant across executions and platforms.
+    fn get_key(&self) -> Vec<u8>;
 }
