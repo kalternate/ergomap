@@ -19,6 +19,7 @@
 //! access the source repository on [GitHub.](https://github.com/kalternate/ergomap)
 
 #![feature(fn_traits)]
+#![feature(split_array)]
 
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
@@ -114,7 +115,7 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     /// Inserts a value into the map, using the specified key [`Vec`] to make an [`Id`] for it.
     ///
     /// Returns [`None`] if that [`Id`] is already in use. Otherwise returns that [`Id`].
-    pub fn insert_as(&mut self, key: Vec<u8>, value: T) -> Option<Id<T>> {
+    pub fn insert_as(&mut self, key: Key, value: T) -> Option<Id<T>> {
         let id = Id::new(key);
 
         if self.contains_id(&id) {
@@ -128,7 +129,7 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     /// Inserts a value into the map, using the specified key [`Vec`] to make an [`Id`] for it.
     ///
     /// If that [`Id`] is already in use, then the previous corresponding value is dropped.
-    pub fn force_insert_as(&mut self, key: Vec<u8>, value: T) -> Id<T> {
+    pub fn force_insert_as(&mut self, key: Key, value: T) -> Id<T> {
         let id = Id::new(key);
         self.map.insert(id.clone(), value);
         id
@@ -221,7 +222,7 @@ impl<T: BuildId, S: BuildHasher> ErgoMap<T, S> {
 /// still return [`None`] if the value has been removed or the `Id` was made by a different map.
 #[derive(Debug)]
 pub struct Id<T> {
-    key: Vec<u8>,
+    key: RawKey,
     phantom: PhantomData<T>,
 }
 
@@ -243,24 +244,35 @@ impl<T> Hash for Id<T> {
 
 impl<T> Clone for Id<T> {
     fn clone(&self) -> Self {
-        Id::new(self.key.clone())
+        Id::new(Key::Slice(self.key))
     }
 }
 
+impl<T> Copy for Id<T> {}
+
 impl<T> Id<T> {
-    fn new(key: Vec<u8>) -> Self {
+    fn new(key: Key) -> Self {
         Id {
-            key,
+            key: match key {
+                Key::Value(value) => value.to_be_bytes(),
+                Key::Slice(slice) => slice,
+                Key::Str(s) => {
+                    let mut v: Vec<u8> = s.into();
+                    while v.len() < 16 {
+                        v.push(0x00)
+                    }
+
+                    v.as_slice().split_array_ref().0.clone()
+                }
+            },
             phantom: Default::default(),
         }
     }
 
     fn new_for<S>(map: &mut ErgoMap<T, S>) -> Self {
         map.inc += 1;
-        Id {
-            key: map.inc.to_be_bytes().to_vec(),
-            phantom: Default::default(),
-        }
+
+        Id::new(Key::Value(map.inc as u128))
     }
 }
 
@@ -271,5 +283,13 @@ pub trait BuildId {
     ///
     /// The return value should be unique compared to other values entered into the [`ErgoMap`] but
     /// should be constant across executions and platforms.
-    fn get_key(&self) -> Vec<u8>;
+    fn get_key(&self) -> Key;
+}
+
+type RawKey = [u8; 16];
+
+pub enum Key {
+    Value(u128),
+    Slice([u8; 16]),
+    Str(String),
 }

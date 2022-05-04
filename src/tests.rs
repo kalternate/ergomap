@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{BuildId, ErgoMap, Id};
+use crate::{BuildId, ErgoMap, Id, Key};
 use std::any::{Any, TypeId};
 
 #[test]
@@ -131,24 +131,24 @@ fn ergomap_for_all_mut() {
 fn ergomap_insert_as() {
     let mut map = ErgoMap::new();
 
-    let id = map.insert_as(vec![0xBE, 0xEF], true).unwrap();
-    assert!(map.insert_as(vec![0xBE, 0xEF], false).is_none());
+    let id = map.insert_as(Key::Value(0xDEADBEEF), true).unwrap();
+    assert!(map.insert_as(Key::Value(0xDEADBEEF), false).is_none());
     assert!(*map.get(&id).unwrap());
 }
 
 #[test]
 fn ergomap_force_insert_as() {
     let mut map = ErgoMap::new();
-    let id = map.force_insert_as(vec![0xBE, 0xEF], false);
-    map.force_insert_as(vec![0xBE, 0xEF], true);
+    let id = map.force_insert_as(Key::Value(0xDEADBEEF), false);
+    map.force_insert_as(Key::Value(0xDEADBEEF), true);
     assert!(map.get(&id).unwrap());
 }
 
 #[test]
 fn ergomap_build_insert() {
     impl BuildId for bool {
-        fn get_key(&self) -> Vec<u8> {
-            0xDEADBEEF_u32.to_be_bytes().to_vec()
+        fn get_key(&self) -> Key {
+            Key::Value(0xDEADBEEF)
         }
     }
 
