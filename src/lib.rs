@@ -19,11 +19,13 @@
 //! access the source repository on [GitHub.](https://github.com/kalternate/ergomap)
 
 #![feature(fn_traits)]
+#![feature(split_array)]
 
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker::PhantomData;
+use rand::{Rng, thread_rng};
 
 mod tests;
 
@@ -36,7 +38,6 @@ mod tests;
 #[derive(Debug, Default, Clone)]
 pub struct ErgoMap<T, S = RandomState> {
     map: HashMap<Id<T>, T, S>,
-    inc: usize,
 }
 
 impl<T> ErgoMap<T, RandomState> {
@@ -44,7 +45,6 @@ impl<T> ErgoMap<T, RandomState> {
     pub fn new() -> Self {
         ErgoMap {
             map: HashMap::new(),
-            inc: 0,
         }
     }
 
@@ -52,7 +52,6 @@ impl<T> ErgoMap<T, RandomState> {
     pub fn with_capacity(capacity: usize) -> Self {
         ErgoMap {
             map: HashMap::with_capacity(capacity),
-            inc: 0,
         }
     }
 }
@@ -66,7 +65,6 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     pub fn with_hasher(hash_builder: S) -> Self {
         ErgoMap {
             map: HashMap::with_hasher(hash_builder),
-            inc: 0,
         }
     }
 
@@ -79,7 +77,6 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     pub fn with_capacity_and_hasher(capacity: usize, hash_builder: S) -> Self {
         ErgoMap {
             map: HashMap::with_capacity_and_hasher(capacity, hash_builder),
-            inc: 0,
         }
     }
 
@@ -107,30 +104,30 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     pub fn insert(&mut self, value: T) -> Id<T> {
         let id = Id::new_for(self);
 
-        self.map.insert(id.clone(), value);
+        self.map.insert(id, value);
         id
     }
 
     /// Inserts a value into the map, using the specified key [`Vec`] to make an [`Id`] for it.
     ///
     /// Returns [`None`] if that [`Id`] is already in use. Otherwise returns that [`Id`].
-    pub fn insert_as(&mut self, key: Vec<u8>, value: T) -> Option<Id<T>> {
+    pub fn insert_as(&mut self, key: Key, value: T) -> Option<Id<T>> {
         let id = Id::new(key);
 
         if self.contains_id(&id) {
             return None;
         }
 
-        self.map.insert(id.clone(), value);
+        self.map.insert(id, value);
         Some(id)
     }
 
     /// Inserts a value into the map, using the specified key [`Vec`] to make an [`Id`] for it.
     ///
     /// If that [`Id`] is already in use, then the previous corresponding value is dropped.
-    pub fn force_insert_as(&mut self, key: Vec<u8>, value: T) -> Id<T> {
+    pub fn force_insert_as(&mut self, key: Key, value: T) -> Id<T> {
         let id = Id::new(key);
-        self.map.insert(id.clone(), value);
+        self.map.insert(id, value);
         id
     }
 
@@ -221,7 +218,7 @@ impl<T: BuildId, S: BuildHasher> ErgoMap<T, S> {
 /// still return [`None`] if the value has been removed or the `Id` was made by a different map.
 #[derive(Debug)]
 pub struct Id<T> {
-    key: Vec<u8>,
+    key: RawKey,
     phantom: PhantomData<T>,
 }
 
@@ -243,33 +240,66 @@ impl<T> Hash for Id<T> {
 
 impl<T> Clone for Id<T> {
     fn clone(&self) -> Self {
-        Id::new(self.key.clone())
+        Id::new(Key::Array(self.key))
     }
 }
 
+impl<T> Copy for Id<T> {}
+
 impl<T> Id<T> {
-    fn new(key: Vec<u8>) -> Self {
+    fn new(key: Key) -> Self {
         Id {
-            key,
+            key: match key {
+                Key::Random => thread_rng().gen(),
+                Key::Value(value) => value.to_be_bytes(),
+                Key::Array(slice) => slice,
+                Key::Str(s) => {
+                    let mut v: Vec<u8> = s.into();
+                    while v.len() < 16 {
+                        v.push(0x00)
+                    }
+
+                    *v.as_slice().split_array_ref().0
+                }
+            },
             phantom: Default::default(),
         }
     }
 
-    fn new_for<S>(map: &mut ErgoMap<T, S>) -> Self {
-        map.inc += 1;
-        Id {
-            key: map.inc.to_be_bytes().to_vec(),
-            phantom: Default::default(),
+    fn new_for<S: BuildHasher>(map: &mut ErgoMap<T, S>) -> Self {
+        let mut id = Id::new(Key::Random);
+
+        while map.contains_id(&id) {
+            id = Id::new(Key::Random);
         }
+
+       id
     }
 }
 
 /// Types that implement this trait can make there own [`Id`] so that it will be constant across
 /// executions and platforms.
 pub trait BuildId {
-    /// Returns a [`Vec`] which will be used to make an [`Id`].
+    /// Returns a [`Key`] which will be used to make an [`Id`].
     ///
     /// The return value should be unique compared to other values entered into the [`ErgoMap`] but
     /// should be constant across executions and platforms.
-    fn get_key(&self) -> Vec<u8>;
+    fn get_key(&self) -> Key;
+}
+
+type RawKey = [u8; 16];
+
+
+/// Type used to make an [`Id`] from various types.
+pub enum Key {
+    /// Generates a random key using [`rand::rngs::ThreadRng`] to make the [`Id`].
+    Random,
+    /// Uses a 128-bit integer to make the [`Id`]
+    Value(u128),
+    /// Uses a 16-byte array to make the [`Id`].
+    Array([u8; 16]),
+    /// Uses a [`String`] to make the [`Id`].
+    ///
+    /// Note that at most only the first 16 bytes of the [`String`], encoded in UTF-8, will be used.
+    Str(String),
 }
