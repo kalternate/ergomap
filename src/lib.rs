@@ -21,11 +21,11 @@
 #![feature(fn_traits)]
 #![feature(split_array)]
 
-use std::collections::hash_map::RandomState;
+use rand::{thread_rng, Rng};
+use std::collections::hash_map::{Iter, IterMut, RandomState};
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker::PhantomData;
-use rand::{Rng, thread_rng};
 
 mod tests;
 
@@ -146,6 +146,11 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
         self.map.get(id)
     }
 
+    /// Returns a mutable reference to the value corresponding to the [`Id`].
+    pub fn get_mut(&mut self, id: &Id<T>) -> Option<&mut T> {
+        self.map.get_mut(id)
+    }
+
     /// Calls the given function on the corresponding value to the specified [`Id`].
     pub fn for_one<R, F: FnOnce(&T) -> R>(&self, id: &Id<T>, f: F) -> Option<R> {
         self.map.get(id).map(f)
@@ -210,6 +215,16 @@ impl<T: BuildId, S: BuildHasher> ErgoMap<T, S> {
     pub fn force_build_insert(&mut self, value: T) -> Id<T> {
         self.force_insert_as(value.get_key(), value)
     }
+
+    /// Returns an iterator visiting all id-value pairs in array order.
+    pub fn iter(&self) -> Iter<'_, Id<T>, T> {
+        self.map.iter()
+    }
+
+    /// Returns a mutable iterator visiting all id-value pairs in array order.
+    pub fn iter_mut(&mut self) -> IterMut<'_, Id<T>, T> {
+        self.map.iter_mut()
+    }
 }
 
 /// Key used to access values in an [`ErgoMap`].
@@ -273,7 +288,7 @@ impl<T> Id<T> {
             id = Id::new(Key::Random);
         }
 
-       id
+        id
     }
 }
 
@@ -288,7 +303,6 @@ pub trait BuildId {
 }
 
 type RawKey = [u8; 16];
-
 
 /// Type used to make an [`Id`] from various types.
 pub enum Key {
