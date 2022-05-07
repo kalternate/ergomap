@@ -142,12 +142,30 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
     }
 
     /// Returns a reference to the value corresponding to the [`Id`].
-    pub fn get(&self, id: &Id<T>) -> Option<&T> {
-        self.map.get(id)
+    ///
+    /// # Panics
+    /// Panics if the [`Id`] is not used in the map.
+    pub fn get(&self, id: &Id<T>) -> &T {
+        self.map.get(id).unwrap()
     }
 
     /// Returns a mutable reference to the value corresponding to the [`Id`].
-    pub fn get_mut(&mut self, id: &Id<T>) -> Option<&mut T> {
+    ///
+    /// # Panics
+    /// Panics if the [`Id`] is not used in the map.
+    pub fn get_mut(&mut self, id: &Id<T>) -> &mut T {
+        self.map.get_mut(id).unwrap()
+    }
+
+    /// Returns a reference to the value corresponding to the [`Id`] or [`None`] if there is no
+    /// corresponding value.
+    pub fn try_get(&self, id: &Id<T>) -> Option<&T> {
+        self.map.get(id)
+    }
+
+    /// Returns a mutable reference to the value corresponding to the [`Id`] or [`None`] if there
+    /// is no corresponding value.
+    pub fn try_get_mut(&mut self, id: &Id<T>) -> Option<&mut T> {
         self.map.get_mut(id)
     }
 
