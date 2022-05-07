@@ -195,6 +195,16 @@ impl<T, S: BuildHasher> ErgoMap<T, S> {
         }
     }
 
+    /// Returns an iterator visiting all id-value pairs in array order.
+    pub fn iter(&self) -> Iter<'_, Id<T>, T> {
+        self.map.iter()
+    }
+
+    /// Returns a mutable iterator visiting all id-value pairs in array order.
+    pub fn iter_mut(&mut self) -> IterMut<'_, Id<T>, T> {
+        self.map.iter_mut()
+    }
+
     /// Chainable variant of `insert`.
     ///
     /// Not sure how useful this is because it doesn't return the [`Id`].
@@ -233,16 +243,7 @@ impl<T: BuildId, S: BuildHasher> ErgoMap<T, S> {
     pub fn force_build_insert(&mut self, value: T) -> Id<T> {
         self.force_insert_as(value.get_key(), value)
     }
-
-    /// Returns an iterator visiting all id-value pairs in array order.
-    pub fn iter(&self) -> Iter<'_, Id<T>, T> {
-        self.map.iter()
-    }
-
-    /// Returns a mutable iterator visiting all id-value pairs in array order.
-    pub fn iter_mut(&mut self) -> IterMut<'_, Id<T>, T> {
-        self.map.iter_mut()
-    }
+    
 }
 
 /// Key used to access values in an [`ErgoMap`].
