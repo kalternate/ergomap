@@ -61,9 +61,9 @@ fn ergomap_get() {
     let id1 = map.insert(1);
     let id2 = map.insert(2);
     let id3 = map.insert(3);
-    assert_eq!(map.get(&id1).unwrap().clone(), 1);
-    assert_eq!(map.get(&id2).unwrap().clone(), 2);
-    assert_eq!(map.get(&id3).unwrap().clone(), 3);
+    assert_eq!(map.try_get(&id1).unwrap().clone(), 1);
+    assert_eq!(map.try_get(&id2).unwrap().clone(), 2);
+    assert_eq!(map.try_get(&id3).unwrap().clone(), 3);
 }
 
 #[test]
@@ -91,9 +91,9 @@ fn ergomap_for_one_mut() {
     map.for_one_mut(&id2, |value| value.0 = 22);
     map.for_one_mut(&id3, |value| value.0 = 333);
 
-    assert_eq!(map.get(&id1).unwrap().0, 1);
-    assert_eq!(map.get(&id2).unwrap().0, 22);
-    assert_eq!(map.get(&id3).unwrap().0, 333);
+    assert_eq!(map.try_get(&id1).unwrap().0, 1);
+    assert_eq!(map.try_get(&id2).unwrap().0, 22);
+    assert_eq!(map.try_get(&id3).unwrap().0, 333);
 }
 
 #[test]
@@ -122,9 +122,9 @@ fn ergomap_for_all_mut() {
         value.0 = value.0.pow(2);
     });
 
-    assert_eq!(map.get(&id1).unwrap().0, 1);
-    assert_eq!(map.get(&id2).unwrap().0, 4);
-    assert_eq!(map.get(&id3).unwrap().0, 9);
+    assert_eq!(map.try_get(&id1).unwrap().0, 1);
+    assert_eq!(map.try_get(&id2).unwrap().0, 4);
+    assert_eq!(map.try_get(&id3).unwrap().0, 9);
 }
 
 #[test]
@@ -133,7 +133,7 @@ fn ergomap_insert_as() {
 
     let id = map.insert_as(Key::Value(0xDEADBEEF), true).unwrap();
     assert!(map.insert_as(Key::Value(0xDEADBEEF), false).is_none());
-    assert!(*map.get(&id).unwrap());
+    assert!(*map.try_get(&id).unwrap());
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn ergomap_force_insert_as() {
     let mut map = ErgoMap::new();
     let id = map.force_insert_as(Key::Value(0xDEADBEEF), false);
     map.force_insert_as(Key::Value(0xDEADBEEF), true);
-    assert!(map.get(&id).unwrap());
+    assert!(map.try_get(&id).unwrap());
 }
 
 #[test]
@@ -155,5 +155,5 @@ fn ergomap_build_insert() {
     let mut map = ErgoMap::new();
     let id = map.build_insert(false).unwrap();
     map.force_build_insert(true);
-    assert!(map.get(&id).unwrap());
+    assert!(map.try_get(&id).unwrap());
 }
